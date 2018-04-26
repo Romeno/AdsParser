@@ -82,19 +82,18 @@ def parse_ads_email(body):
 	import re
 
 	rules = [
-		# regex, field name, is multiline?
-		(re.compile(r'\s*(.*)\s*', re.UNICODE | re.IGNORECASE), 'website', False),
-		(re.compile(r'время заказа:\s*(.*)', re.UNICODE | re.IGNORECASE), 'order_time', False),
-		(re.compile(r'имя:\s*(.*)', re.UNICODE | re.IGNORECASE), 'client_name', False),
-		(re.compile(r'телефон:\s*(.*)', re.UNICODE | re.IGNORECASE), 'phone_number', False),
-		(re.compile(r'e-mail:\s*(.*)', re.UNICODE | re.IGNORECASE), 'email', False),
-		(re.compile(r'адрес:\s*(.*)', re.UNICODE | re.IGNORECASE), 'address', False),
-		(re.compile(r'комментарии:\s*(.*)', re.UNICODE | re.IGNORECASE), 'comments', False),
-		(re.compile(r'order:\s*(.*)', re.UNICODE | re.IGNORECASE | re.MULTILINE), 'order', True),
-		(re.compile(r'итого:\s*(.*)', re.UNICODE | re.IGNORECASE), 'order_cost', False),
-		(re.compile(r'ip:\s*(.*)', re.UNICODE | re.IGNORECASE), 'order_cost', False),
-		(re.compile(r'[roistat](.*)[/roistat]', re.UNICODE | re.IGNORECASE), 'roistat', False),
-		(re.compile(r'\s*[utm](.*)[/utm]\s*', re.UNICODE | re.IGNORECASE), 'utm', False),
+		# regex, field name
+		(re.compile(r'^\s*время заказа:(.*)$', re.UNICODE | re.IGNORECASE | re.MULTILINE), 'order_time'),
+		(re.compile(r'^\s*имя:(.*)$', re.UNICODE | re.IGNORECASE | re.MULTILINE), 'client_name'),
+		(re.compile(r'^\s*телефон:(.*)$', re.UNICODE | re.IGNORECASE | re.MULTILINE), 'phone_number'),
+		(re.compile(r'^\s*e-mail:(.*)$', re.UNICODE | re.IGNORECASE | re.MULTILINE), 'email'),
+		(re.compile(r'^\s*адрес:(.*)$', re.UNICODE | re.IGNORECASE | re.MULTILINE), 'address'),
+		(re.compile(r'^\s*комментарии:(.*)$', re.UNICODE | re.IGNORECASE | re.MULTILINE), 'comments'),
+		(re.compile(r'^\s*заказ:(.*?)\n\n', re.UNICODE | re.IGNORECASE | re.DOTALL | re.MULTILINE), 'order'),
+		(re.compile(r'^\s*итого:(.*)$', re.UNICODE | re.IGNORECASE | re.MULTILINE), 'order_cost'),
+		(re.compile(r'^\s*ip:(.*)$', re.UNICODE | re.IGNORECASE | re.MULTILINE), 'ip'),
+		(re.compile(r'^\s*\[roistat\](.*)\[/roistat\]\s*?$', re.UNICODE | re.IGNORECASE | re.MULTILINE), 'roistat'),
+		(re.compile(r'^\s*\[utm\](.*)\[/utm\]\s*?$', re.UNICODE | re.IGNORECASE | re.MULTILINE), 'utm'),
 	]
 
 	results = {}
@@ -102,20 +101,21 @@ def parse_ads_email(body):
 	lines = body.split('\n')
 	it_lines = iter(lines)
 
-	skip_till_empty_line = False
-	for l in it_lines:
-		if l.isspace() or skip_till_empty_line:
-			skip_till_empty_line = False
-			continue
+	line = next(it_lines)
+	while not line or line.isspace():
+		line = next(it_lines)
 
-		for rule in rules:
-			m = rule[0].search(l)
-			if m:
-				results[rule[1]] = m.group(0)
-			skip_till_empty_line = rule[2]
+	results['wesbite'] = line.strip()
+
+	for rule in rules:
+		m = rule[0].search(body)
+		if m:
+			results[rule[1]] = m.group(1).strip()
+
+	return results
 
 
-def store_to_db():
+def store_to_db(data):
 	import sqlalchemy
 
 
@@ -224,10 +224,10 @@ def test():
 def main():
 	get_ads_email()
 	body = extract_email_body()
-	parse_ads_email(body)
-	store_to_db()
+	ad_data = parse_ads_email(body)
+	store_to_db(ad_data)
 
 
 if __name__ == "__main__":
 	body = extract_email_body()
-	parse_ads_email(body)
+	print(parse_ads_email(body))
